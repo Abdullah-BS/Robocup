@@ -1,255 +1,202 @@
 /**
-* @par Copyright (C): 2010-2019, Shenzhen Yahboom Tech
-* @file         omniduino_move_all_directions.ino
-* @brief        Robot moves in all directions with delays
-* @details      Modified version to demonstrate all movement directions
+* Yahboom Omniduino Mecanum Wheel Movement Test
+* Corrected motor coordination for proper omnidirectional movement
 */
 
-//Import library file
 #include <Arduino.h>
 #include <Adafruit_PWMServoDriver.h>
-#include <Adafruit_NeoPixel.h>
-#include <I2Cdev.h>
-// #include <MPU6050_6Axis_MotionApps_V6_12.h>
 
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-#include "Wire.h"
-#endif
+// Motor definitions - CHANGE THESE IF MOVEMENT IS INCORRECT
+// Try swapping motor numbers or reversing directions if movement is wrong
+const uint8_t MOTOR_FRONT_RIGHT = 0;  // Wheel at front-right position
+const uint8_t MOTOR_FRONT_LEFT = 1;   // Wheel at front-left position
+const uint8_t MOTOR_REAR_LEFT = 2;    // Wheel at rear-left position
+const uint8_t MOTOR_REAR_RIGHT = 3;   // Wheel at rear-right position
 
-#define BUZZER 10        //Define buzzer pins
-#define KEY_PIN 8        //Define button pins
-#define INTERRUPT_PIN 2  //Define MPU6050 pins
-#define LED_PIN 5        //Define status indicator pins
-#define RGB_PIN 9        //Define RGB pins
-#define MAX_LED 4        //Car with 4 RGB lights
+// Motor pins - CHANGE THESE TO MATCH YOUR WIRING
+const uint8_t motorPins[4][2] = {
+  {10, 11},  // Front-right motor (IN1, IN2)
+  {13, 12},  // Front-left motor
+  {15, 14},  // Rear-left motor
+  {8, 9}     // Rear-right motor
+};
 
-#define IR_SENSOR_L1 A3
-#define IR_SENSOR_L2 A0
-#define IR_SENSOR_R1 A2
-#define IR_SENSOR_R2 A1
-#define IR_SENSOR_MID A7
-
-const char wheel[4][2] = {{10, 11}, {13, 12}, {15, 14}, {8, 9}};
-int CarSpeedControl = 40;  // Default speed (0-160)
+int moveSpeed = 160;  // Speed (0-160)
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
 void setup() {
-  pinMode(BUZZER, OUTPUT);
-  pinMode(KEY_PIN, INPUT_PULLUP);
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(IR_SENSOR_L1, INPUT);
-  pinMode(IR_SENSOR_L2, INPUT);
-  pinMode(IR_SENSOR_R1, INPUT);
-  pinMode(IR_SENSOR_R2, INPUT);
-  pinMode(IR_SENSOR_MID, INPUT);
-
-  Serial.begin(9600);
-  pwm.begin();
-  pwm.setPWMFreq(60); // Analog servos run at ~60 Hz updates
-  brake();            // Initialize with motors stopped
+  Serial.begin(115200);
+  Serial.println("Omniduino Movement Test Starting...");
   
-  digitalWrite(LED_PIN, HIGH); // Turn off LED initially
+  pwm.begin();
+  pwm.setPWMFreq(60);
+  brake();
+  
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
-/**
-* Movement functions
-*/
-void run(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, Speed); //Right rear wheel Forward
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(8, 0, Speed);  //Right front wheel Forward
-  pwm.setPWM(9, 0, 0);
-
-  pwm.setPWM(13, 0, Speed); //Left rear wheel Forward
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(15, 0, Speed); //Left front wheel Forward
-  pwm.setPWM(14, 0, 0);
+void setMotor(uint8_t motorNum, int speed) {
+  // Constrain speed and map to PWM range
+  speed = constrain(speed, -160, 160);
+  int pwmSpeed = map(abs(speed), 0, 160, 0, 4095);
+  
+  Serial.print("Motor ");
+  Serial.print(motorNum);
+  Serial.print(" set to ");
+  Serial.println(speed);
+  
+  if (speed > 0) {  // Forward
+    pwm.setPWM(motorPins[motorNum][0], 0, pwmSpeed);
+    pwm.setPWM(motorPins[motorNum][1], 0, 0);
+  } else if (speed < 0) {  // Reverse
+    pwm.setPWM(motorPins[motorNum][0], 0, 0);
+    pwm.setPWM(motorPins[motorNum][1], 0, pwmSpeed);
+  } else {  // Brake
+    pwm.setPWM(motorPins[motorNum][0], 0, 0);
+    pwm.setPWM(motorPins[motorNum][1], 0, 0);
+  }
 }
+
 
 void brake() {
-  pwm.setPWM(8, 0, 0);
-  pwm.setPWM(9, 0, 0);
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(10, 0, 0);
+  for (int i = 0; i < 4; i++) {
+    setMotor(i, 0);
+  }
+  Serial.println("Braking all motors");
+}
 
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(13, 0, 0);
-  pwm.setPWM(14, 0, 0);
-  pwm.setPWM(15, 0, 0);
+// CORRECTED MOVEMENT FUNCTIONS
+void run(int Speed) {
+  // All wheels forward
+  setMotor(0, -Speed);  // Front-right
+  setMotor(1, -Speed);  // Front-left
+  setMotor(2, Speed);  // Rear-left
+  setMotor(3, Speed);  // Rear-right
 }
 
 void back(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, 0);
-  pwm.setPWM(11, 0, Speed); //Right rear wheel Reverse
-  pwm.setPWM(8, 0, 0);
-  pwm.setPWM(9, 0, Speed);  //Right front wheel Reverse
-
-  pwm.setPWM(13, 0, 0);
-  pwm.setPWM(12, 0, Speed); //Left rear wheel Reverse
-  pwm.setPWM(15, 0, 0);
-  pwm.setPWM(14, 0, Speed); //Left front wheel Reverse
-}
-
-void left(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, Speed); //Right rear wheel(B type) Forward
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(8, 0, 0);
-  pwm.setPWM(9, 0, Speed);  //Right front wheel(A type) Reverse
-
-  pwm.setPWM(13, 0, 0);
-  pwm.setPWM(12, 0, Speed); //Left rear wheel (A type) Reverse
-  pwm.setPWM(15, 0, Speed); //Left front wheel(B type) Forward
-  pwm.setPWM(14, 0, 0);
+  // All wheels backward
+  setMotor(0, Speed);
+  setMotor(1, Speed);
+  setMotor(2, -Speed);
+  setMotor(3, -Speed);
 }
 
 void right(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, 0);
-  pwm.setPWM(11, 0, Speed); //Right front wheel(B type) Reverse
-  pwm.setPWM(8, 0, Speed);  //Right rear wheel(A type) Forward
-  pwm.setPWM(9, 0, 0);
-
-  pwm.setPWM(13, 0, Speed); //Left front wheel(A type) Forward
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(15, 0, 0);
-  pwm.setPWM(14, 0, Speed); //Left rear wheel(B type) Reverse
+  // Strafe left
+  setMotor(0, -Speed);
+  setMotor(1, Speed);
+  setMotor(2, -Speed);
+  setMotor(3, Speed);
 }
 
-void spin_left(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, Speed); //Right front wheel Forward
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(8, 0, Speed);  //Right rear wheel Forward
-  pwm.setPWM(9, 0, 0);
-
-  pwm.setPWM(13, 0, 0);
-  pwm.setPWM(12, 0, Speed); //Left front wheel Reserve
-  pwm.setPWM(15, 0, 0);
-  pwm.setPWM(14, 0, Speed); //Left rear wheel Reserve
+void left(int Speed) {
+  // Strafe right
+  setMotor(0, Speed);
+  setMotor(1, -Speed);
+  setMotor(2, Speed);
+  setMotor(3, -Speed);
 }
 
-void spin_right(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, 0);
-  pwm.setPWM(11, 0, Speed); //Right front wheel Reserve
-  pwm.setPWM(8, 0, 0);
-  pwm.setPWM(9, 0, Speed);  //Right rear wheel Reserve
-
-  pwm.setPWM(13, 0, Speed); //Left front wheel Forward
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(15, 0, Speed); //Left rear wheel Forward
-  pwm.setPWM(14, 0, 0);
+void forward_right(int Speed) {
+  // Strafe right
+  setMotor(0, -Speed);
+  setMotor(1, 0);
+  setMotor(2, 0);
+  setMotor(3, Speed);
 }
 
-void front_left(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, Speed); //Right front wheel(B type) Forward
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(8, 0, 0);      //Right rear wheel(A type) stop
-  pwm.setPWM(9, 0, 0);
-
-  pwm.setPWM(13, 0, 0);     //Left front wheel(A type) stop
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(15, 0, Speed); //Left rear wheel(B type) Forward
-  pwm.setPWM(14, 0, 0);
+void forward_left(int Speed) {
+  // Strafe right
+  setMotor(0, 0);
+  setMotor(1, -Speed);
+  setMotor(2, Speed);
+  setMotor(3, 0);
 }
 
-void front_right(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, 0);     //Right front wheel(B type) stop
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(8, 0, Speed);  //Right rear wheel(A type) Forward
-  pwm.setPWM(9, 0, 0);
-
-  pwm.setPWM(13, 0, Speed); //Left front wheel(A type) Forward
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(15, 0, 0);     //Left rear wheel(B type) stop
-  pwm.setPWM(14, 0, 0);
+void back_right(int Speed) {
+  // Strafe right
+  setMotor(0, 0);
+  setMotor(1, Speed);
+  setMotor(2, -Speed);
+  setMotor(3, 0);
 }
 
-void left_rear(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, 0);     //Right front wheel(B type) stop
-  pwm.setPWM(11, 0, 0);
-  pwm.setPWM(8, 0, 0);
-  pwm.setPWM(9, 0, Speed);  //Right rear wheel(A type) Reserve
-
-  pwm.setPWM(13, 0, 0);
-  pwm.setPWM(12, 0, Speed); //Left front wheel(A type) Reserve
-  pwm.setPWM(15, 0, 0);     //Left rear wheel(B type) stop
-  pwm.setPWM(14, 0, 0);
+void back_left(int Speed) {
+  // Strafe right
+  setMotor(0, Speed);
+  setMotor(1, 0);
+  setMotor(2, 0);
+  setMotor(3, -Speed);
 }
 
-void right_rear(int Speed) {
-  Speed = map(Speed, 0, 160, 0, 2560);
-  pwm.setPWM(10, 0, 0);
-  pwm.setPWM(11, 0, Speed); //Right front wheel(B type) Reserve
-  pwm.setPWM(8, 0, 0);      //Right rear wheel(A type) stop
-  pwm.setPWM(9, 0, 0);
+void rotate_right(int Speed) {
+  // Strafe right
+  setMotor(0, -Speed);
+  setMotor(1, Speed);
+  setMotor(2, Speed);
+  setMotor(3, -Speed);
+}
 
-  pwm.setPWM(13, 0, 0);     //Left front wheel (A type) stop
-  pwm.setPWM(12, 0, 0);
-  pwm.setPWM(15, 0, 0);
-  pwm.setPWM(14, 0, Speed); //Left rear wheel(B type) Reserve
+void rotate_left(int Speed) {
+  // Strafe right
+  setMotor(0, Speed);
+  setMotor(1, -Speed);
+  setMotor(2, -Speed);
+  setMotor(3, Speed);
 }
 
 void loop() {
-  // Movement sequence with delays
-  digitalWrite(LED_PIN, LOW); // Turn on LED during movement
-  
-  run(CarSpeedControl);       // Move forward
-  delay(2000);                // 2 seconds
-  brake();
-  delay(500);                 // 0.5 second pause
-  
-  back(CarSpeedControl);      // Move backward
+  run(moveSpeed);       // Forward
   delay(2000);
   brake();
   delay(500);
   
-  left(CarSpeedControl);      // Move left
+  back(moveSpeed);      // Backward
   delay(2000);
   brake();
   delay(500);
   
-  right(CarSpeedControl);     // Move right
+  left(moveSpeed);      // Strafe left
   delay(2000);
   brake();
   delay(500);
   
-  spin_left(CarSpeedControl); // Spin left
+  right(moveSpeed);     // Strafe right
+  delay(2000);
+  brake();
+  delay(500);
+    
+  forward_left(moveSpeed);// Diagonal front-left
   delay(2000);
   brake();
   delay(500);
   
-  spin_right(CarSpeedControl);// Spin right
+  forward_right(moveSpeed);// Diagonal front-right
   delay(2000);
   brake();
   delay(500);
-  
-  front_left(CarSpeedControl);// Front-left diagonal
+
+  back_left(moveSpeed);// Diagonal front-right
   delay(2000);
   brake();
   delay(500);
-  
-  front_right(CarSpeedControl);// Front-right diagonal
+
+  back_right(moveSpeed);// Diagonal front-right
   delay(2000);
   brake();
   delay(500);
-  
-  left_rear(CarSpeedControl); // Left-rear diagonal
+
+  rotate_left(moveSpeed);// Diagonal front-right
   delay(2000);
   brake();
   delay(500);
-  
-  right_rear(CarSpeedControl);// Right-rear diagonal
+
+  rotate_right(moveSpeed);// Diagonal front-right
   delay(2000);
   brake();
   delay(500);
+
   
-  digitalWrite(LED_PIN, HIGH); // Turn off LED after sequence
-  while(1); // Stop after completing sequence (remove if you want it to repeat)
-}
+    }
