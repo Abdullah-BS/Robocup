@@ -101,6 +101,8 @@ void processGamepad(ControllerPtr ctl) {
   int leftX = ctl->axisX();
   int leftY = ctl->axisY();
   int rightX = ctl->axisRX(); // Right stick X-axis
+  
+
   bool commandSent = false;
   const int deadzone = 50;
 
@@ -140,6 +142,19 @@ void processGamepad(ControllerPtr ctl) {
     commandSent = true;
   }
   
+    if (ctl->l1()) {
+    sendCommand("forward_left");
+  }
+  else if (ctl->r1()) {
+    sendCommand("forward_right");
+  }
+  else if (ctl->l2()) {
+    sendCommand("back_left");
+  }
+  else if (ctl->r2()) {
+    sendCommand("back_right");
+  }
+
   // If no movement command was sent and joysticks are centered, send stop
   if (!commandSent) {
     processCarMovement(STOP);
