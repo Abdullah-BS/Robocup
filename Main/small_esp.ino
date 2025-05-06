@@ -36,93 +36,25 @@ ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 void processCarMovement(int inputValue) {
   switch(inputValue) {
     case FORWARD:
-       digitalWrite(FRONT_LEFT_IN1, HIGH);
-        digitalWrite(FRONT_LEFT_IN2, LOW);
-
-        // Set the front right motor to move forward
-        digitalWrite(FRONT_RIGHT_IN1, LOW);
-        digitalWrite(FRONT_RIGHT_IN2, HIGH);
-
-        // Set the back left motor to move forward
-        digitalWrite(BACK_LEFT_IN1, HIGH);
-        digitalWrite(BACK_LEFT_IN2, LOW);
-
-        // Set the back right motor to move forward
-        digitalWrite(BACK_RIGHT_IN1, LOW);
-        digitalWrite(BACK_RIGHT_IN2, HIGH);
-        sendCommand("forward");
-
+      sendCommand("forward");
       break;
 
     case BACKWARD:
-        digitalWrite(FRONT_RIGHT_IN1, HIGH);
-        digitalWrite(FRONT_RIGHT_IN2, LOW);
-
-        // Set the front right motor to move forward
-        digitalWrite(FRONT_LEFT_IN1, LOW);
-        digitalWrite(FRONT_LEFT_IN2, HIGH);
-
-        // Set the back left motor to move forward
-        digitalWrite(BACK_LEFT_IN1, HIGH);
-        digitalWrite(BACK_LEFT_IN2, LOW);
-
-        // Set the back right motor to move forward
-        digitalWrite(BACK_RIGHT_IN1, LOW);
-        digitalWrite(BACK_RIGHT_IN2, HIGH);
-        sendCommand("back");
+      sendCommand("backward");  // Changed from "back" to match Arduino
       break;
 
     case LEFT:
-
-
-      Serial.println("left");
-
+      sendCommand("left");
       break;
 
     case RIGHT:
-
-
-
-      Serial.println("right");
-
+      sendCommand("right");
       break;
 
     case STOP:
     default:
-   
-      Serial.println("stop");
+      sendCommand("stop");  // Always send stop command when no movement
       break;
-
-    // case Fleft:
-    // default:
-   
-      
-      Serial.println("Fleft");
-      break;
-
-
-    //  case Fright:
-    // default:
-   
-      
-      Serial.println("Fright");
-      break;
-
-      
-    //  case rotateR:
-    // default:
-   
-      
-      Serial.println("rotateR");
-      break;
-    
-    // case rotateL:
-    // default:
-   
-      
-      Serial.println("rotateL");
-      break;
-    
   }
 }
 
@@ -158,10 +90,11 @@ void onDisconnectedController(ControllerPtr ctl) {
   }
 }
 
+
 void processGamepad(ControllerPtr ctl) {
   int leftX = ctl->axisX();
   int leftY = ctl->axisY();
-
+  bool commandSent = false;
   const int deadzone = 50;
 
   if (abs(leftY) > deadzone || abs(leftX) > deadzone) {
@@ -173,20 +106,28 @@ void processGamepad(ControllerPtr ctl) {
       } else {
         processCarMovement(FORWARD);
       }
+      commandSent = true;
     }
     else if (leftY > deadzone) {
       processCarMovement(BACKWARD);
+      commandSent = true;
     }
     else if (leftX < -deadzone) {
       processCarMovement(LEFT);
+      commandSent = true;
     }
     else if (leftX > deadzone) {
       processCarMovement(RIGHT);
+      commandSent = true;
     }
-  } else {
+  }
+  
+  // If no movement command was sent and joystick is centered, send stop
+  if (!commandSent) {
     processCarMovement(STOP);
   }
 }
+
 
 void processControllers() {
   for (auto myController : myControllers) {
@@ -199,7 +140,7 @@ void processControllers() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);  // UART to Arduino
 
   Serial.printf("Firmware: %s\n", BP32.firmwareVersion());
