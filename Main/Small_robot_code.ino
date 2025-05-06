@@ -163,6 +163,12 @@ void motorAction(String command) {
   else if (command == "stop") {
     brake();
   }
+  else if (command == "rotate_left") {
+    rotate_left(moveSpeed);
+  }
+  else if (command == "rotate_right") {
+    rotate_right(moveSpeed);
+  }
 }
 
 void loop() {
