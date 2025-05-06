@@ -25,7 +25,7 @@ int moveSpeed = 160;  // Speed (0-160)
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.println("Omniduino Movement Test Starting...");
   
   pwm.begin();
@@ -147,56 +147,83 @@ void rotate_left(int Speed) {
   setMotor(3, Speed);
 }
 
+void motorAction(String command) {
+  if (command == "forward") {
+    run(moveSpeed);
+  }
+  else if (command == "backward") {
+    back(moveSpeed);
+  }
+  else if (command == "left") {
+    left(moveSpeed);
+  }
+  else if (command == "right") {
+    right(moveSpeed);
+  }
+  else if (command == "stop") {
+    brake();
+  }
+}
+
 void loop() {
-  run(moveSpeed);       // Forward
-  delay(2000);
-  brake();
-  delay(500);
+
+  if (Serial.available()) {
+  String cmd = Serial.readStringUntil('\n');
+  cmd.trim();
+  Serial.println(cmd);
+  motorAction(cmd);
+  }
+
+
+  // run(moveSpeed);       // Forward
+  // delay(2000);
+  // brake();
+  // delay(500);
   
-  back(moveSpeed);      // Backward
-  delay(2000);
-  brake();
-  delay(500);
+  // back(moveSpeed);      // Backward
+  // delay(2000);
+  // brake();
+  // delay(500);
   
-  left(moveSpeed);      // Strafe left
-  delay(2000);
-  brake();
-  delay(500);
+  // left(moveSpeed);      // Strafe left
+  // delay(2000);
+  // brake();
+  // delay(500);
   
-  right(moveSpeed);     // Strafe right
-  delay(2000);
-  brake();
-  delay(500);
+  // right(moveSpeed);     // Strafe right
+  // delay(2000);
+  // brake();
+  // delay(500);
     
-  forward_left(moveSpeed);// Diagonal front-left
-  delay(2000);
-  brake();
-  delay(500);
+  // forward_left(moveSpeed);// Diagonal front-left
+  // delay(2000);
+  // brake();
+  // delay(500);
   
-  forward_right(moveSpeed);// Diagonal front-right
-  delay(2000);
-  brake();
-  delay(500);
+  // forward_right(moveSpeed);// Diagonal front-right
+  // delay(2000);
+  // brake();
+  // delay(500);
 
-  back_left(moveSpeed);// Diagonal front-right
-  delay(2000);
-  brake();
-  delay(500);
+  // back_left(moveSpeed);// Diagonal front-right
+  // delay(2000);
+  // brake();
+  // delay(500);
 
-  back_right(moveSpeed);// Diagonal front-right
-  delay(2000);
-  brake();
-  delay(500);
+  // back_right(moveSpeed);// Diagonal front-right
+  // delay(2000);
+  // brake();
+  // delay(500);
 
-  rotate_left(moveSpeed);// Diagonal front-right
-  delay(2000);
-  brake();
-  delay(500);
+  // rotate_left(moveSpeed);// Diagonal front-right
+  // delay(2000);
+  // brake();
+  // delay(500);
 
-  rotate_right(moveSpeed);// Diagonal front-right
-  delay(2000);
-  brake();
-  delay(500);
+  // rotate_right(moveSpeed);// Diagonal front-right
+  // delay(2000);
+  // brake();
+  // delay(500);
 
   
     }
