@@ -25,7 +25,7 @@ int moveSpeed = 160;  // Speed (0-160)
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("Omniduino Movement Test Starting...");
   
   pwm.begin();
