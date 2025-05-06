@@ -1,14 +1,15 @@
 #include <Bluepad32.h>
 
 // Motor control definitions
-// #define RXD2 16
+#define RXD2 16
 #define TXD2 1
-
 
 #define FORWARD 1
 #define BACKWARD 2
 #define LEFT 3
 #define RIGHT 4
+#define ROTATE_LEFT 5
+#define ROTATE_RIGHT 6
 #define STOP 0
 
 #define RIGHT_MOTOR 0
@@ -25,13 +26,11 @@
 #define BACK_RIGHT_IN1 5
 #define BACK_RIGHT_IN2 17
 
-
 #define MAX_MOTOR_SPEED 255
 const int PWMFreq = 1000; /* 1 KHz */
 const int PWMResolution = 8;
 
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
-
 
 void processCarMovement(int inputValue) {
   switch(inputValue) {
@@ -40,7 +39,7 @@ void processCarMovement(int inputValue) {
       break;
 
     case BACKWARD:
-      sendCommand("backward");  // Changed from "back" to match Arduino
+      sendCommand("backward");
       break;
 
     case LEFT:
@@ -50,10 +49,18 @@ void processCarMovement(int inputValue) {
     case RIGHT:
       sendCommand("right");
       break;
+      
+    case ROTATE_LEFT:
+      sendCommand("rotate_left");
+      break;
+      
+    case ROTATE_RIGHT:
+      sendCommand("rotate_right");
+      break;
 
     case STOP:
     default:
-      sendCommand("stop");  // Always send stop command when no movement
+      sendCommand("stop");
       break;
   }
 }
@@ -90,13 +97,14 @@ void onDisconnectedController(ControllerPtr ctl) {
   }
 }
 
-
 void processGamepad(ControllerPtr ctl) {
   int leftX = ctl->axisX();
   int leftY = ctl->axisY();
+  int rightX = ctl->axisRX(); // Right stick X-axis
   bool commandSent = false;
   const int deadzone = 50;
 
+  // Process left stick (movement)
   if (abs(leftY) > deadzone || abs(leftX) > deadzone) {
     if (leftY < -deadzone) {
       if (leftX < -deadzone) {
@@ -122,12 +130,21 @@ void processGamepad(ControllerPtr ctl) {
     }
   }
   
-  // If no movement command was sent and joystick is centered, send stop
+  // Process right stick (rotation only)
+  if (abs(rightX) > deadzone) {
+    if (rightX < -deadzone) {
+      processCarMovement(ROTATE_LEFT);
+    } else if (rightX > deadzone) {
+      processCarMovement(ROTATE_RIGHT);
+    }
+    commandSent = true;
+  }
+  
+  // If no movement command was sent and joysticks are centered, send stop
   if (!commandSent) {
     processCarMovement(STOP);
   }
 }
-
 
 void processControllers() {
   for (auto myController : myControllers) {
@@ -161,7 +178,6 @@ void loop() {
   }
   delay(10);
 }
-
 
 void sendCommand(const char* command) {
   Serial2.println(command);  // UART to Arduino
